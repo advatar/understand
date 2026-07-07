@@ -77,17 +77,41 @@ Scope `paths` to genuinely consequential code to avoid ceremony fatigue.
 
 ## Install
 
-**As a plugin** (recommended). From a Claude Code session:
+Pick whichever is easiest — all three give you `/explain-diff` and `/understanding-gate`.
+
+**A · Type two commands (recommended).** In any Claude Code session:
 
 ```
-/plugin marketplace add advatar/understand      # or a local path to this repo
-/plugin install understanding
+/plugin marketplace add advatar/understand
+/plugin install understanding@understand
 ```
 
-Then in any repo: `/explain-diff main..HEAD`
+Then, in any repo: `/explain-diff main..HEAD`
 
-**Manual / plugin-averse.** Copy `skills/` into the target repo's `.claude/skills/` and `commands/`
-into `.claude/commands/`. (An `npx understanding init` vendoring path is planned.)
+**B · Just point your Claude agent at this repo.** Tell it:
+
+> Install the understanding plugin from github.com/advatar/understand
+
+The agent runs the two commands above (or vendors it with `install.sh`) — no manual steps.
+
+**C · Vendor it (no plugin system).** From inside the repo you want it in:
+
+```
+curl -fsSL https://raw.githubusercontent.com/advatar/understand/main/install.sh | bash
+```
+
+or clone this repo and run `./install.sh --target /path/to/your/repo`. It copies the skills +
+commands into that repo's `.claude/`.
+
+**Optional — turn on the pre-push gate.** The gate is OFF until you opt in. To enforce it, install the
+git hook and add a config:
+
+```
+bash "$CLAUDE_PLUGIN_ROOT/scripts/setup-hooks.sh"     # or ./scripts/setup-hooks.sh from a clone
+echo '{ "gate": { "enabled": true, "base": "origin/main", "paths": ["src/"] } }' > .understanding/config.json
+```
+
+Requires `git` and `node`; `gh` only for PR-number mode. Nothing here needs network access at runtime.
 
 ## The `.understanding/` convention
 
