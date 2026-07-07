@@ -16,6 +16,13 @@ git repo — any language, any stack, monorepo or not.
 
 See `docs/` in the Mandamus repo for the full design (`UNDERSTANDING-FRAMEWORK.md`).
 
+> **Scope of increment 1.** This ships the *explainer* and its build-time **self-check** (an
+> independent grader must re-derive the quiz answers from the diff, or the explainer isn't emitted).
+> It is a strong tool for **studying** a change. It is **not yet a deployable pass/fail gate** — the
+> quiz page holds no answers and does no grading, so it can't *verify* a human's understanding on its
+> own. That is increment 2 (`/understanding-gate --grade`, which marks the response blob against the
+> diff and mints a pass token). Until then, treat a completed quiz as self-study, not certification.
+
 ## What `/explain-diff` does
 
 `/explain-diff [range] [-- <pathspec>]` reads a diff (a git range, or a PR via `gh`), understands it,
@@ -72,4 +79,3 @@ existing forge (GitHub/GitLab/Gitea) code-review surface.
 
 - `git` (required), `node` (required, for assembly), `gh` (optional — only for PR-number mode).
 - No network access needed by the generated HTML (strictly self-contained; CSP-friendly).
-# understand
