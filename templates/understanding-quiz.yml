@@ -1,0 +1,35 @@
+# Understanding gate — PR check (copy to .github/workflows/understanding-quiz.yml in your repo).
+#
+# Blocks a PR only when your repo has opted in (.understanding/config.json with gate.enabled=true)
+# AND the PR's consequential change lacks a valid understanding pass. With no config it's a no-op,
+# so merging this workflow never surprises anyone.
+#
+# Enable author != certifier by adding "prCheck": true to the gate config:
+#   { "gate": { "enabled": true, "base": "origin/main", "paths": ["src/"], "prCheck": true } }
+#
+# Other forges (GitLab/Gitea/Jenkins): skip this file and just run ci-gate.mjs in your pipeline —
+# exit 0 = allowed, non-zero = block (the bring-your-own-CI contract).
+name: understanding-quiz
+on:
+  pull_request:
+
+jobs:
+  understanding:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # need base..head to resolve the range
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Understanding gate
+        run: |
+          GATE=.claude/skills/understanding-gate/scripts/ci-gate.mjs
+          if [ ! -f "$GATE" ]; then
+            git clone --depth 1 https://github.com/advatar/understand.git /tmp/understand
+            GATE=/tmp/understand/skills/understanding-gate/scripts/ci-gate.mjs
+          fi
+          node "$GATE" \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}"

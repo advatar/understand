@@ -1,6 +1,6 @@
 {
   "name": "understanding",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Operationalizes 'Understanding is the New Bottleneck': generate a self-contained HTML explainer for any diff or PR (Background -> Intuition -> Code -> Quiz), self-checked against the diff before emission. Portable — depends on nothing project-specific and touches only .understanding/.",
   "author": { "name": "Advatar / Mandamus" },
   "keywords": ["understanding", "code-review", "explainer", "diff", "onboarding", "documentation"],

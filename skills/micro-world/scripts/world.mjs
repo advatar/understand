@@ -54,6 +54,20 @@ function git(args, cwd) { return execFileSync("git", args, { cwd, encoding: "utf
 function gitOk(args, cwd) { try { git(args, cwd); return true; } catch { return false; } }
 function uroot(root) { return path.join(root, ".understanding"); }
 
+// Optional forge-neutral publish hook: .understanding/config.json { "publish": { "cmd": "..." } } →
+// run `<cmd> <file> <slug> <title>` after building. Non-fatal; the framework never learns the destination.
+function publishIfConfigured(root, file, slug, title) {
+  try {
+    const cfgPath = path.join(root, ".understanding", "config.json");
+    if (!fs.existsSync(cfgPath)) return;
+    const cmd = (JSON.parse(fs.readFileSync(cfgPath, "utf8")).publish || {}).cmd;
+    if (!cmd) return;
+    const q = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'";
+    execFileSync("bash", ["-c", `${cmd} ${q(file)} ${q(slug)} ${q(title)}`], { cwd: root, stdio: "inherit" });
+    console.error("published: " + slug);
+  } catch (e) { warn("publish.cmd failed (world is written locally): " + (e.message || e)); }
+}
+
 // content id of a subsystem = hash of tracked blobs (ls-tree) PLUS working-tree divergence
 // (status --porcelain), so a modified-but-uncommitted or newly-untracked file also flips it.
 function subsystemSha(root, paths) {
@@ -177,6 +191,7 @@ if (cmd === "build") {
   const have = fs.existsSync(giPath) ? new Set(fs.readFileSync(giPath, "utf8").split("\n")) : new Set();
   for (const w of [".work/", ".nonces/"]) if (!have.has(w)) fs.appendFileSync(giPath, w + "\n");
   rewriteWorldsIndex(root, [{ slug: c.slug, stale: false, mode: c.mode }]);
+  publishIfConfigured(root, path.join(outDir, "index.html"), c.slug, c.title);
   console.log(JSON.stringify({ ok: true, slug: c.slug, world: path.relative(root, path.join(outDir, "index.html")) }));
   process.exit(0);
 }

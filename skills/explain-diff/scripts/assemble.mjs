@@ -20,10 +20,26 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = path.join(__dirname, "..", "assets", "template.html");
+
+// Optional, forge-neutral: if the project sets .understanding/config.json { "publish": { "cmd": "..." } },
+// run `<cmd> <file> <slug> <title>` after building, to push the artifact to a gated home (e.g. an app).
+// Non-fatal — the artifact is already written locally. The framework never learns where it goes.
+function publishIfConfigured(root, file, slug, title) {
+  try {
+    const cfgPath = path.join(root, ".understanding", "config.json");
+    if (!fs.existsSync(cfgPath)) return;
+    const cmd = (JSON.parse(fs.readFileSync(cfgPath, "utf8")).publish || {}).cmd;
+    if (!cmd) return;
+    const q = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'";
+    execFileSync("bash", ["-c", `${cmd} ${q(file)} ${q(slug)} ${q(title)}`], { cwd: root, stdio: "inherit" });
+    console.error("published: " + slug);
+  } catch (e) { console.error("publish: warning — publish.cmd failed (artifact is written locally): " + (e.message || e)); }
+}
 
 function arg(name, def) {
   const i = process.argv.indexOf(name);
@@ -178,6 +194,8 @@ if (fs.existsSync(idxPath)) {
   lines = fs.readFileSync(idxPath, "utf8").split("\n").filter((l) => l.startsWith("| [`") && !l.includes(`[\`${c.slug}\``));
 }
 fs.writeFileSync(idxPath, header + [row, ...lines].join("\n") + "\n");
+
+publishIfConfigured(root, path.join(outDir, "index.html"), c.slug, c.title);
 
 console.log(JSON.stringify({
   ok: true, slug: c.slug,

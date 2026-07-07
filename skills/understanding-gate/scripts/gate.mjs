@@ -199,6 +199,21 @@ if (cmd === "check") {
   const manifest = readJSON(manifestPath(root, slug), { required: false, label: "manifest" });
   const ref = expectedRangeSha || (manifest && manifest.rangeSha);
   if (ref && rec.rangeSha !== ref) { console.log(JSON.stringify({ ok: false, reason: "stale", slug })); process.exit(1); }
+  // author != certifier (team/pr-check): the person who passed must not be the change's author.
+  const certNot = arg("--certifier-not");
+  if (certNot) {
+    // certNot may be "Name <email>", a bare email, or a bare name (best-effort identity match).
+    const emailRe = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+    const normEmail = (e) => { if (!e) return ""; const [loc, dom] = e.toLowerCase().split("@"); return loc.split("+")[0] + "@" + dom; }; // strip +tag
+    const who = String(rec.who || "");
+    const whoEmail = normEmail((who.match(emailRe) || [])[0]);
+    const certEmail = normEmail((certNot.match(emailRe) || [])[0]);
+    const certName = certNot.replace(/<[^>]*>/g, "").replace(emailRe, "").trim().toLowerCase();
+    const selfCertified =
+      (!!whoEmail && !!certEmail && whoEmail === certEmail) ||          // emails match (tag-normalized)
+      (certName.length >= 2 && who.toLowerCase().includes(certName));  // else fall back to name
+    if (selfCertified) { console.log(JSON.stringify({ ok: false, reason: "self-certified", slug, who: rec.who })); process.exit(1); }
+  }
   console.log(JSON.stringify({ ok: true, slug, who: rec.who, passedAt: rec.passedAt }));
   process.exit(0);
 }

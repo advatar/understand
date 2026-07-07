@@ -11,8 +11,8 @@ git repo — any language, any stack, monorepo or not.
 
 - **Increment 1 — `/explain-diff` + explainer self-check — ✅ built.**
 - **Increment 2 — `/understanding-gate` (agent-graded gate, pass tokens, pre-push hook) — ✅ built.**
-- **Increment 3 — `/micro-world` (human-driven single-file interactive model, SHA-stamped + STALE detection) — ✅ built (v0.3.0).**
-- Increment 4 — team scale (`publish.cmd`, forge-neutral CI gate, author ≠ certifier) — planned.
+- **Increment 3 — `/micro-world` (human-driven single-file interactive model, SHA-stamped + STALE detection) — ✅ built.**
+- **Increment 4 — team scale (`publish.cmd`, forge-neutral CI gate, author ≠ certifier) — ✅ built (v0.4.0).**
 
 See `docs/` in the Mandamus repo for the full design (`UNDERSTANDING-FRAMEWORK.md`).
 
@@ -91,6 +91,40 @@ cp path/to/understanding/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hoo
 
 With no config (or `enabled:false`) the hook is a **no-op** — installing it never surprises anyone.
 Scope `paths` to genuinely consequential code to avoid ceremony fatigue.
+
+### Team scale — CI gate + author ≠ certifier
+
+The understanding a pass proves only *counts* if someone other than the author did the understanding.
+On a team, add `"prCheck": true` and run the gate as a PR check:
+
+```json
+{ "gate": { "enabled": true, "base": "origin/main", "paths": ["src/"], "prCheck": true } }
+```
+
+Copy `templates/understanding-quiz.yml` into `.github/workflows/` — or, on any other forge, run
+`skills/understanding-gate/scripts/ci-gate.mjs` in your pipeline and honor the exit code (**0 =
+allowed, non-zero = block** — the bring-your-own-CI contract). With `prCheck`, a pass whose certifier
+matches the change's author is **rejected**: a *different* teammate must build the explainer and pass
+its quiz. Default is OFF, so adding the workflow never surprises a repo.
+
+**What it does and doesn't prove.** The CI gate confirms a *fresh pass record exists naming a
+certifier ≠ the author*. It does **not** cryptographically re-verify the pass — the verifying nonce is
+local/gitignored and re-grading needs the agent, so CI can't recompute the token. Pass records are
+committed, so the tamper-evidence is the review itself: a forged/edited `.understanding/passes/**`
+shows up in the PR diff — review it like any other change. Author≠certifier is a best-effort identity
+match, not an identity provider. Cryptographically **signing** pass records (so an author can't forge
+a teammate's certification) is the honest next hardening.
+
+### Publishing to a gated home
+
+`publish.cmd` is an optional, forge-neutral hook. After `/explain-diff` or `/micro-world` builds an
+artifact, the framework runs `<cmd> <file> <slug> <title>` so a project can push it wherever it likes
+(an internal app, a docs site) — the framework never learns the destination, and a publish failure is
+non-fatal (the artifact is already written locally):
+
+```json
+{ "publish": { "cmd": "node tools/publish-explainer.mjs" } }
+```
 
 ## Install
 

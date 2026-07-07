@@ -66,8 +66,11 @@ sep=".."   # preserved diff operator (.. or ...)
 
 is_pr=""
 case "$RANGE" in
-  \#[0-9]*) is_pr="${RANGE#\#}" ;;
-  [0-9]*) is_pr="$RANGE" ;;
+  \#[0-9]*) is_pr="${RANGE#\#}" ;;   # "#123" — an explicit PR reference
+  *[!0-9]*) ;;                        # contains a non-digit (git range, sha, path) — NOT a PR
+  [0-9]*)                             # all-digits: could be a PR number OR an all-digit short sha.
+    # A real git commit wins over a PR-number guess (so an all-digit sha resolves correctly).
+    if ! git rev-parse --verify --quiet "$RANGE^{commit}" >/dev/null 2>&1; then is_pr="$RANGE"; fi ;;
 esac
 
 diff_file="$work_dir/.tmp.$$.diff"

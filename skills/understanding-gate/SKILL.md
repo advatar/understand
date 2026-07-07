@@ -63,12 +63,31 @@ the pass record was forged or the answers changed. (Requires the local gitignore
 exit 0 if a fresh pass exists, non-zero otherwise. This only checks existence + range freshness; use
 `--verify` for authenticity.
 
-## Enabling the pre-push gate (opt-in)
-The gate is OFF by default. To enforce it, add `.understanding/config.json`:
-`{ "gate": { "enabled": true, "base": "origin/main", "paths": ["src/"] } }` and install the hook
-(`ln -s` or copy `${CLAUDE_PLUGIN_ROOT:-.claude}/hooks/pre-push` into `.git/hooks/pre-push`, chmod +x). Then a
-push that touches `paths` without a valid pass is blocked. Keep `paths` scoped to genuinely
-consequential code to avoid ceremony fatigue.
+## Enabling the gate (opt-in) — solo, team, and publishing
+The gate is OFF by default. Turn it on with `.understanding/config.json`:
+`{ "gate": { "enabled": true, "base": "origin/main", "paths": ["src/"], "prCheck": true }, "publish": { "cmd": "node tools/publish.mjs" } }`
+
+- **Solo (pre-push).** Install the hook (`bash "${CLAUDE_PLUGIN_ROOT:-.claude}/../scripts/setup-hooks.sh"`,
+  or copy `hooks/pre-push` into `.git/hooks/`). A push touching `paths` without a valid pass is blocked.
+- **Team (CI, author ≠ certifier).** Set `"prCheck": true` and run `ci-gate.mjs` in a PR check (copy
+  `templates/understanding-quiz.yml` to `.github/workflows/`, or call the script on any forge — exit 0
+  allowed, non-zero block). With `prCheck`, a pass whose certifier matches the change's author is
+  rejected: someone *else* must have understood it. This is what makes the pass mean something on a team.
+- **Publishing.** `publish.cmd` is a neutral, optional hook: after `/explain-diff` or `/micro-world`
+  builds an artifact, the framework runs `<cmd> <file> <slug> <title>` so a project can push it to a
+  gated home (e.g. an internal app). The framework never learns the destination; publish failure is
+  non-fatal (the artifact is already written locally).
+
+Keep `paths` scoped to genuinely consequential code to avoid ceremony fatigue.
+
+**Honest limit of the CI gate.** It confirms a *fresh pass record exists naming a certifier ≠ the
+author*. It does **not** cryptographically re-verify the pass in CI — the verifying nonce is local and
+gitignored, and re-deriving the answers needs the grader agent, neither of which a plain CI job has.
+Because pass records are committed, the tamper-evidence is the code review itself: a forged or
+hand-edited `.understanding/passes/**` file shows up in the PR diff, so review it like any other
+change. The author≠certifier match is a best-effort identity heuristic (email tag-normalized, then
+name), not an identity provider. The real cryptographic hardening — certifiers *signing* pass records
+so an author can't fake a teammate's certification — is the natural next step (out of scope here).
 
 ## Notes
 - Never write correct answers to disk (not in the pass record, not in `.work`). The token is the only
