@@ -10,8 +10,8 @@ git repo — any language, any stack, monorepo or not.
 ## Status
 
 - **Increment 1 — `/explain-diff` + explainer self-check — ✅ built.**
-- **Increment 2 — `/understanding-gate` (agent-graded gate, pass tokens, pre-push hook) — ✅ built (v0.2.0).**
-- Increment 3 — `/micro-world` (human-driven single-file interactive model of a subsystem) — planned.
+- **Increment 2 — `/understanding-gate` (agent-graded gate, pass tokens, pre-push hook) — ✅ built.**
+- **Increment 3 — `/micro-world` (human-driven single-file interactive model, SHA-stamped + STALE detection) — ✅ built (v0.3.0).**
 - Increment 4 — team scale (`publish.cmd`, forge-neutral CI gate, author ≠ certifier) — planned.
 
 See `docs/` in the Mandamus repo for the full design (`UNDERSTANDING-FRAMEWORK.md`).
@@ -37,6 +37,23 @@ and generates a **self-contained** `.understanding/explainers/<slug>/index.html`
   free-text into a base64 *response blob*. Correct answers live nowhere on disk; per-run nonces are
   written to a **gitignored** `.understanding/.nonces/`. You cannot mint a pass by reading the HTML or
   its source — grading re-derives correctness from the diff and consumes the nonces.
+
+## What `/micro-world` does
+
+`/micro-world --paths <path>…` (a subsystem) or `--range <range>` (a change) builds a single-file,
+**human-driven** interactive model — `.understanding/worlds/<slug>/index.html`:
+
+- A scrubber / step-inject-rewind / before-after **playground** you poke at to build intuition — a
+  re-implementation *for understanding*, running vanilla JS offline, seeded with **real fixture
+  data** pulled from the code (not invented input).
+- An honest **faithful-vs-reimplemented** table up top: every notable aspect marked `faithful`,
+  `simplified`, or `omitted`. A green you can't back up is the exact failure mode this guards against.
+- **SHA-stamped + STALE detection.** The world records the sha of its subsystem/range;
+  `world.mjs check --slug <slug>` (or `--all`) recomputes it and flags the world **STALE** when the
+  code moves. A stale world is untrusted until regenerated — the hook-able signal for teams.
+
+Its honest limit: "fresh" means the sha matches, not that the model was ever faithful — that's what
+the fidelity table and the real seed are for.
 
 ## What `/understanding-gate` does
 
@@ -119,6 +136,9 @@ Requires `git` and `node`; `gh` only for PR-number mode. Nothing here needs netw
 .understanding/
   explainers/<slug>/index.html      self-contained explainer   (commit or gitignore — your call)
   explainers/<slug>/manifest.json   metadata + question prompts + self-check verdict (no answers)  [commit]
+  worlds/<slug>/index.html          human-driven micro-world (SHA-stamped)   [commit]
+  worlds/<slug>/manifest.json       mode + sha + fidelity map (for STALE detection)   [commit]
+  worlds/INDEX.md                   micro-world catalog with a Stale column   [commit]
   passes/<slug>.json                pass token + who + first-attempt score (no answers)   [commit]
   INDEX.md                          auto-maintained catalog = the shared-space entry point   [commit]
   config.json                       optional; gate opt-in (absent = all defaults, gate OFF)   [commit]

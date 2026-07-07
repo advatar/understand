@@ -135,7 +135,7 @@ for (const [tok, val] of [
   ["{{INTUITION}}", c.intuition_html],
   ["{{CODE}}", c.code_html],
   ["{{QUIZ}}", quizHtml()],
-  ["{{QUESTIONS_JSON}}", JSON.stringify(questionsForClient)],
+  ["{{QUESTIONS_JSON}}", JSON.stringify(questionsForClient).replace(/</g, "\\u003c")],
 ]) {
   html = html.split(tok).join(val);
 }
