@@ -42,6 +42,8 @@ catch (e) { die("cannot read/parse content: " + e.message); }
 for (const k of ["title", "slug", "rangeSha", "background_html", "intuition_html", "code_html", "quiz"]) {
   if (c[k] === undefined || c[k] === null || c[k] === "") die(`content missing required field: ${k}`);
 }
+// slug builds filesystem paths — validate strictly (it always comes from resolve_range.sh).
+if (!/^[0-9a-f]{7}-[0-9a-f]{7}(-[0-9a-f]{6})?$/.test(c.slug)) die(`invalid slug '${c.slug}' (expected NNNNNNN-NNNNNNN[-NNNNNN] hex from resolve_range.sh)`);
 
 // --- quality gates the spec mandates (fail loudly, before we write anything) ---
 const quiz = c.quiz;

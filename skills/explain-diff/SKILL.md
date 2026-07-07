@@ -16,7 +16,7 @@ specific diff, ending in a quiz whose answers are NOT in the page (they're grade
 diff by `/understanding-gate`). Your job is the understanding, not decoration.
 
 **This skill is portable. Never assume a framework, language, or repo layout. Read what the diff
-actually touches.** All paths below are relative to `${CLAUDE_PLUGIN_ROOT}/skills/explain-diff`.
+actually touches.** All paths below are relative to `${CLAUDE_PLUGIN_ROOT:-.claude}/skills/explain-diff`.
 
 ## Steps
 
@@ -24,7 +24,7 @@ actually touches.** All paths below are relative to `${CLAUDE_PLUGIN_ROOT}/skill
 Run the resolver (it handles PR mode via `gh`, degrades to plain git ranges, and is monorepo-safe):
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/skills/explain-diff/scripts/resolve_range.sh" <RANGE> [-- <pathspec>...]
+bash "${CLAUDE_PLUGIN_ROOT:-.claude}/skills/explain-diff/scripts/resolve_range.sh" <RANGE> [-- <pathspec>...]
 ```
 
 - `<RANGE>` defaults to `HEAD~1..HEAD`. Accept `main..HEAD`, a single ref, or a PR (`#123`/`123`).
@@ -62,7 +62,7 @@ A subtly-wrong explainer that its own quiz "confirms" is worse than nothing. So,
 1. Note your **intended answers** for each MCQ (keep them out of every file).
 2. **Spawn a grader subagent** — Task tool, `subagent_type: general-purpose` — which runs in a FRESH
    context (it does NOT inherit this conversation). Its entire prompt is the rubric plus the inputs:
-   paste the contents of `${CLAUDE_PLUGIN_ROOT}/skills/explain-diff/prompts/grader.md`, then the **raw
+   paste the contents of `${CLAUDE_PLUGIN_ROOT:-.claude}/skills/explain-diff/prompts/grader.md`, then the **raw
    diff** (from `diffFile`) and your **drafted quiz questions (prompts + options, NO answers)**. Do
    NOT include your Background/Intuition/Code prose — the grader must derive answers from the diff
    alone (this is what makes the check independent). Ask it to return the rubric's structured verdict
@@ -81,7 +81,7 @@ diff by an independent reader.
 
 ### 5. Emit
 ```
-node "${CLAUDE_PLUGIN_ROOT}/skills/explain-diff/scripts/assemble.mjs" --content .understanding/.work/<slug>.content.json --root "$(git rev-parse --show-toplevel)"
+node "${CLAUDE_PLUGIN_ROOT:-.claude}/skills/explain-diff/scripts/assemble.mjs" --content .understanding/.work/<slug>.content.json --root "$(git rev-parse --show-toplevel)"
 ```
 It writes the explainer + `manifest.json` (committed; records the self-check verdict but NO answers),
 the gitignored `.nonces/<slug>.json`, ensures `.understanding/.gitignore`, and updates

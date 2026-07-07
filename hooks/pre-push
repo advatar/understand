@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# understanding — pre-push gate (increment 2).
+#
+# Blocks a push only when the repo has OPTED IN via .understanding/config.json and the pushed range
+# touches "consequential" paths without a valid understanding pass. Default is OFF (no config, or
+# gate.enabled != true) → this is a no-op, so installing the hook never surprises anyone.
+#
+# git invokes pre-push with "<remote-name> <remote-url>" as ARGV and, on STDIN, one line per ref:
+#     <local ref> <local oid> <remote ref> <remote oid>
+# Reading the refs from STDIN (not argv) is the part everyone gets wrong — we read STDIN.
+#
+# config (.understanding/config.json):
+#   { "gate": { "enabled": true, "base": "origin/main", "paths": ["src/","lib/"] } }
+#     enabled  default false
+#     base     fallback base for a brand-new branch push (remote oid all-zero). default origin/main
+#     paths    pathspec that makes a diff "consequential". omitted/[] => the whole diff is gated
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+[ -z "$repo_root" ] && exit 0
+cfg="$repo_root/.understanding/config.json"
+[ -f "$cfg" ] || exit 0   # not opted in
+
+enabled="$(node -e 'try{const c=require(process.argv[1]);const e=c?.gate?.enabled;process.stdout.write(String(e===true||e==="true"))}catch{process.stdout.write("false")}' "$cfg" 2>/dev/null || echo false)"
+[ "$enabled" = "true" ] || exit 0   # gate off (or unparseable config) => no-op
+
+base="$(node -e 'try{const c=require(process.argv[1]);process.stdout.write(c?.gate?.base||"origin/main")}catch{process.stdout.write("origin/main")}' "$cfg" 2>/dev/null || echo origin/main)"
+# paths as a bash array (bash 3.2 compatible — macOS default bash has no `mapfile`)
+PATHS=()
+while IFS= read -r _p; do [ -n "$_p" ] && PATHS+=("$_p"); done < <(node -e 'try{const c=require(process.argv[1]);(c?.gate?.paths||[]).forEach(p=>console.log(p))}catch{}' "$cfg" 2>/dev/null || true)
+
+hook_dir="$(cd "$(dirname "$0")" && pwd)"
+GATE_JS=""
+for cand in "$hook_dir/../skills/understanding-gate/scripts/gate.mjs" \
+            "$repo_root/.claude/skills/understanding-gate/scripts/gate.mjs"; do
+  [ -f "$cand" ] && GATE_JS="$cand" && break
+done
+if [ -z "$GATE_JS" ]; then
+  echo "understanding: gate enabled but gate.mjs not found; refusing to push (fail-closed)." >&2
+  exit 1
+fi
+
+zero_re='^0+$'
+blocked=0
+while read -r local_ref local_oid remote_ref remote_oid; do
+  [ -z "${local_ref:-}" ] && continue
+  [[ "$local_oid" =~ $zero_re ]] && continue         # branch deletion — nothing to gate
+  if [[ "$remote_oid" =~ $zero_re ]]; then
+    if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1; then
+      echo "understanding: gate.base '$base' does not resolve — set a valid base in .understanding/config.json." >&2
+      blocked=1; continue
+    fi
+    range="$base..$local_oid"                        # new branch — diff against configured base
+  else
+    range="$remote_oid..$local_oid"                  # existing branch — only the new commits
+  fi
+
+  # consequential-scope filter
+  if [ "${#PATHS[@]}" -gt 0 ]; then
+    if [ -z "$(git diff --name-only "$range" -- "${PATHS[@]}" 2>/dev/null)" ]; then
+      continue                                       # push doesn't touch gated paths
+    fi
+    if ! node "$GATE_JS" check --root "$repo_root" --range "$range" -- "${PATHS[@]}" >/dev/null 2>&1; then
+      echo "understanding: no valid pass for consequential change in $range (paths: ${PATHS[*]})." >&2
+      blocked=1
+    fi
+  else
+    if ! node "$GATE_JS" check --root "$repo_root" --range "$range" >/dev/null 2>&1; then
+      echo "understanding: no valid pass for $range." >&2
+      blocked=1
+    fi
+  fi
+done
+
+if [ "$blocked" = "1" ]; then
+  echo "" >&2
+  echo "  Build an explainer and pass its quiz first:" >&2
+  echo "    /explain-diff <range>            # generates .understanding/explainers/<slug>/index.html" >&2
+  echo "    open it, answer the quiz, then:  /understanding-gate --grade <blob>" >&2
+  echo "  (or set .understanding/config.json gate.enabled=false to disable this check)" >&2
+  exit 1
+fi
+exit 0

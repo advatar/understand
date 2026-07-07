@@ -1,0 +1,11 @@
+{
+  "name": "understand",
+  "owner": { "name": "Advatar / Mandamus" },
+  "plugins": [
+    {
+      "name": "understanding",
+      "source": "./",
+      "description": "Understanding is the New Bottleneck, operationalized. /explain-diff generates a self-contained interactive explainer for any diff or PR (Background → Intuition → Code → self-checking Quiz), verified against the diff before emission. /understanding-gate grades a human's quiz against the diff and mints an unforgeable pass token, with an opt-in pre-push gate. Portable: depends on nothing project-specific and touches only .understanding/."
+    }
+  ]
+}
